@@ -1,13 +1,6 @@
-/*
-    SimpleSerial index.js
-    Created 7 May 2013
-    Modified 9 May 2013
-    by Tom Igoe
-*/
-
-
 var app = {
-    macAddress: "54:A5:95:E4:66:01",  // get your mac address from bluetoothSerial.list
+//    macAddress: "54:A5:95:E4:66:01",
+    macAddress: "null",  // get your mac address from bluetoothSerial.list
     chars: "",
 
 /*
@@ -23,6 +16,12 @@ var app = {
     bindEvents: function() {
         document.addEventListener('deviceready', this.onDeviceReady, false);
         connectButton.addEventListener('touchend', app.manageConnection, false);
+        discoverButton.addEventListener('touchend', app.discoverDevice, false);
+    },
+
+    macAddressOnChange: function(event) {
+      app.display("Selected MAC address is " + event.value);
+      app.macAddress = event.value;
     },
 
 /*
@@ -36,8 +35,20 @@ var app = {
             // list the available BT ports:
             bluetoothSerial.list(
                 function(results) {
-                    app.display(JSON.stringify(results));
+                    //app.display(JSON.stringify(results));
+
+                    var selMac = document.getElementById("macID");
+                    var item;
+                    for(item in results) {
+                      app.display("ID " + results[item].id + " name " + results[item].name);
+
+                      var option = document.createElement("option");
+                      option.text = results[item].name;
+                      option.value = results[item].id;
+                      selMac.add(option);
+                    }
                 },
+
                 function(error) {
                     app.display(JSON.stringify(error));
                 }
@@ -55,6 +66,41 @@ var app = {
             notEnabled
         );
     },
+
+    discoverDevice: function() {
+      document.getElementById("progressBar").style.visibility = 'visible';
+
+      var select = document.getElementById('macID');
+      while(select.options.length > 1) {
+        select.remove(1);
+      }
+      app.clear();
+      app.display("Start Searching Bluetooth Device.");
+
+      bluetoothSerial.setDeviceDiscoveredListener(function(device) {
+        var selMac = document.getElementById("macID");
+        var option = document.createElement("option");
+        option.text = device.name;
+        option.value = device.id;
+        selMac.add(option);
+
+        console.log('Found: '+device.id);
+        app.display("Newly Found Device Name [" + device.name + "] ID " + device.id);
+      });
+
+      bluetoothSerial.discoverUnpaired(function(devices) {
+        devices.forEach(function(device) {
+          console.log(device.id);
+        })
+        app.display("Search Bluetooth Device Successfull.");
+        document.getElementById("progressBar").style.visibility = 'hidden';
+      }, function(error) {
+        console.log("Failed to find any blue tooth device");
+        app.display("Failed to find any blue tooth device");
+        document.getElementById("progressBar").style.visibility = 'hidden';
+      });
+
+    },
 /*
     Connects if not connected, and disconnects if connected:
 */
@@ -63,6 +109,12 @@ var app = {
         // connect() will get called only if isConnected() (below)
         // returns failure. In other words, if not connected, then connect:
         var connect = function () {
+            if(app.macAddress == "null" || app.macAddress == null) {
+              app.display("Please select a MAC Address First");
+              return;
+            }
+
+            document.getElementById("progressBar").style.visibility = 'visible';
             // if not connected, do this:
             // clear the screen and display an attempt to connect
             app.clear();
@@ -95,6 +147,7 @@ var app = {
     and changes the button:
 */
     openPort: function() {
+        document.getElementById("progressBar").style.visibility = 'hidden';
         // if you get a good Bluetooth serial connection:
         app.display("Connected to: " + app.macAddress);
         // change the button's name:
@@ -106,6 +159,17 @@ var app = {
             app.clear();
             app.display(data);
         });
+
+        bluetoothSerial.write("hello, world",
+          function(data){
+            app.display("bluetooth write success. " + data);
+          },
+          function(error){
+            app.display("bluetooth write failed. " + error);
+          }
+        );
+
+
     },
 
 /*
@@ -129,6 +193,7 @@ var app = {
 */
     showError: function(error) {
         app.display(error);
+        document.getElementById("progressBar").style.visibility = 'hidden';
     },
 
 /*
